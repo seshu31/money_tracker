@@ -196,6 +196,8 @@ class CategoryStatsScreen extends StatelessWidget {
         return Colors.red;
       case 'health':
         return Colors.green;
+      case 'sports':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -215,6 +217,8 @@ class CategoryStatsScreen extends StatelessWidget {
         return Icons.receipt;
       case 'health':
         return Icons.medical_services;
+      case 'sports':
+        return Icons.sports_soccer;
       default:
         return Icons.attach_money;
     }

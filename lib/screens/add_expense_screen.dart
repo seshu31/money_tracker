@@ -27,6 +27,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     'Shopping',
     'Bills',
     'Health',
+    'Sports',
     'Other'
   ];
 
