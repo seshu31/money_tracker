@@ -17,6 +17,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   // Track which date sections are expanded
   Set<DateTime> _expandedDates = {};
+  
+  // Daily spending limit
+  static const double dailyLimit = 500.0;
 
   @override
   void initState() {
@@ -72,6 +75,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _addExpense(Expense expense) async {
     try {
+      // Check if adding this expense would exceed daily limit
+      final todayExpenses = _getTodayExpenses();
+      final todayTotal = todayExpenses.fold(0.0, (sum, e) => sum + e.amount);
+      final newTotal = todayTotal + expense.amount;
+      
+      if (newTotal > dailyLimit) {
+        // Show warning dialog
+        final shouldContinue = await _showDailyLimitWarning(newTotal, dailyLimit);
+        if (!shouldContinue) {
+          return; // User cancelled
+        }
+      }
+      
       await _databaseHelper.insertExpense(expense);
       await _loadExpenses(); // Reload the list
     } catch (e) {
@@ -81,6 +97,33 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _showDailyLimitWarning(double newTotal, double limit) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Daily Limit Warning'),
+          content: Text(
+            'Adding this expense will exceed your daily limit of ₹${limit.toStringAsFixed(0)}.\n\n'
+            'New total: ₹${newTotal.toStringAsFixed(0)}\n'
+            'Limit: ₹${limit.toStringAsFixed(0)}\n\n'
+            'Do you want to continue?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Continue', style: TextStyle(color: Colors.orange)),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
   }
 
   Future<void> _updateExpense(Expense expense) async {
@@ -142,6 +185,49 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Get today's expenses
+  List<Expense> _getTodayExpenses() {
+    final today = DateTime.now();
+    final todayKey = DateTime(today.year, today.month, today.day);
+    return expenses.where((expense) {
+      final expenseDate = DateTime(expense.date.year, expense.date.month, expense.date.day);
+      return expenseDate == todayKey;
+    }).toList();
+  }
+
+  // Calculate today's total spending
+  double _calculateTodayTotal() {
+    final todayExpenses = _getTodayExpenses();
+    return todayExpenses.fold(0.0, (sum, expense) => sum + expense.amount);
+  }
+
+  // Get spending limit status
+  Map<String, dynamic> _getSpendingLimitStatus() {
+    final todayTotal = _calculateTodayTotal();
+    final percentage = (todayTotal / dailyLimit * 100).clamp(0.0, 100.0);
+    
+    Color progressColor;
+    String statusText;
+    
+    if (todayTotal >= dailyLimit) {
+      progressColor = Colors.red;
+      statusText = 'Limit exceeded!';
+    } else if (todayTotal >= dailyLimit * 0.8) {
+      progressColor = Colors.orange;
+      statusText = 'Near limit';
+    } else {
+      progressColor = Colors.green;
+      statusText = 'Under limit';
+    }
+    
+    return {
+      'percentage': percentage,
+      'color': progressColor,
+      'statusText': statusText,
+      'todayTotal': todayTotal,
+    };
+  }
+
   // Group expenses by date
   Map<DateTime, List<Expense>> _groupExpensesByDate() {
     Map<DateTime, List<Expense>> groupedExpenses = {};
@@ -179,29 +265,29 @@ class _HomeScreenState extends State<HomeScreen> {
     groupedExpenses.forEach((date, dailyExpenses) {
       final isExpanded = _expandedDates.contains(date);
       
-             // Add collapsible date header with daily total
-       widgets.add(
-         Container(
-           margin: const EdgeInsets.only(bottom: 8),
-           decoration: BoxDecoration(
-             color: Colors.white,
-             borderRadius: BorderRadius.circular(16),
-             boxShadow: [
-               BoxShadow(
-                 color: Colors.black.withOpacity(0.08),
-                 blurRadius: 8,
-                 offset: const Offset(0, 2),
-               ),
-             ],
-           ),
-           child: Column(
-             children: [
-               // Date header (always visible)
-               InkWell(
-                 onTap: () => _toggleDateSection(date),
-                 borderRadius: BorderRadius.circular(16),
-                 child: Container(
-                   padding: const EdgeInsets.all(16),
+      // Add collapsible date header with daily total
+      widgets.add(
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Date header (always visible)
+              InkWell(
+                onTap: () => _toggleDateSection(date),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
                       // Expand/collapse icon
@@ -309,25 +395,6 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getTypeColor(expense.type).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      expense.type,
-                      style: TextStyle(
-                        color: _getTypeColor(expense.type),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   Text(
                     _formatTime(expense.date),
                     style: const TextStyle(
@@ -436,6 +503,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final spendingStatus = _getSpendingLimitStatus();
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Money Tracker'),
@@ -474,57 +543,109 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.account_balance_wallet,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total Expenses',
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.account_balance_wallet,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total Expenses',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₹${_calculateTotal().toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: Colors.grey[800],
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${expenses.length}',
                         style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₹${_calculateTotal().toStringAsFixed(0)}',
-                        style: TextStyle(
-                          color: Colors.grey[800],
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                
+                // Daily Limit Progress
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.today,
+                      size: 16,
+                      color: spendingStatus['color'],
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Today: ₹${spendingStatus['todayTotal'].toStringAsFixed(0)} / ₹${dailyLimit.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: spendingStatus['color'],
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      spendingStatus['statusText'],
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: spendingStatus['color'],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: Text(
-                    '${expenses.length}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: spendingStatus['percentage'] / 100,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: spendingStatus['color'],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                 ),
