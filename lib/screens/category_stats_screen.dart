@@ -22,42 +22,71 @@ class CategoryStatsScreen extends StatelessWidget {
           // Total Summary Card
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                ],
-              ),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Column(
+            child: Row(
               children: [
-                const Text(
-                  'Total Expenses',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.pie_chart,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '₹${totalAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Expenses',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '₹${totalAmount.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: Colors.grey[800],
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${expenses.length} expense${expenses.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${expenses.length}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -74,8 +103,19 @@ class CategoryStatsScreen extends StatelessWidget {
                 final amount = categoryTotals[category]!;
                 final percentage = totalAmount > 0 ? (amount / totalAmount * 100) : 0.0;
                 
-                return Card(
+                return Container(
                   margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
@@ -85,12 +125,12 @@ class CategoryStatsScreen extends StatelessWidget {
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: _getTypeColor(category),
+                            color: _getTypeColor(category).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             _getTypeIcon(category),
-                            color: Colors.white,
+                            color: _getTypeColor(category),
                             size: 24,
                           ),
                         ),
@@ -104,49 +144,68 @@ class CategoryStatsScreen extends StatelessWidget {
                               Text(
                                 category,
                                 style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '₹${amount.toStringAsFixed(2)}',
+                                '₹${amount.toStringAsFixed(0)}',
                                 style: const TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 18,
                                   color: Colors.red,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 '${percentage.toStringAsFixed(1)}% of total',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
                                 ),
                               ),
                             ],
                           ),
                         ),
                         
-                        // Progress Bar
+                        // Progress Bar and Count
                         SizedBox(
                           width: 60,
                           child: Column(
                             children: [
-                              LinearProgressIndicator(
-                                value: totalAmount > 0 ? amount / totalAmount : 0,
-                                backgroundColor: Colors.grey[300],
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  _getTypeColor(category),
+                              Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                                child: FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: totalAmount > 0 ? amount / totalAmount : 0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: _getTypeColor(category),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_getExpenseCount(category)}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _getTypeColor(category).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${_getExpenseCount(category)}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: _getTypeColor(category),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ],

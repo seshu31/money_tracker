@@ -179,23 +179,29 @@ class _HomeScreenState extends State<HomeScreen> {
     groupedExpenses.forEach((date, dailyExpenses) {
       final isExpanded = _expandedDates.contains(date);
       
-      // Add collapsible date header with daily total
-      widgets.add(
-        Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            children: [
-              // Date header (always visible)
-              InkWell(
-                onTap: () => _toggleDateSection(date),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isExpanded 
-                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                        : Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+             // Add collapsible date header with daily total
+       widgets.add(
+         Container(
+           margin: const EdgeInsets.only(bottom: 8),
+           decoration: BoxDecoration(
+             color: Colors.white,
+             borderRadius: BorderRadius.circular(16),
+             boxShadow: [
+               BoxShadow(
+                 color: Colors.black.withOpacity(0.08),
+                 blurRadius: 8,
+                 offset: const Offset(0, 2),
+               ),
+             ],
+           ),
+           child: Column(
+             children: [
+               // Date header (always visible)
+               InkWell(
+                 onTap: () => _toggleDateSection(date),
+                 borderRadius: BorderRadius.circular(16),
+                 child: Container(
+                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
                       // Expand/collapse icon
@@ -455,42 +461,71 @@ class _HomeScreenState extends State<HomeScreen> {
           // Total Expenses Summary
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withOpacity(0.8),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Column(
+            child: Row(
               children: [
-                const Text(
-                  'Total Expenses',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '₹${_calculateTotal().toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Expenses',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '₹${_calculateTotal().toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: Colors.grey[800],
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${expenses.length} expense${expenses.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${expenses.length}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
