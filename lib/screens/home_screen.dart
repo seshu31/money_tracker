@@ -507,12 +507,23 @@ class _HomeScreenState extends State<HomeScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Money Tracker'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(
+          'Money Tracker',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.grey[800]),
         actions: [
           IconButton(
-            icon: const Icon(Icons.analytics),
+            icon: Icon(
+              Icons.analytics_outlined,
+              color: Colors.grey[800],
+            ),
             onPressed: () {
               Navigator.push(
                 context,
@@ -565,12 +576,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Total Expenses',
-                            style: TextStyle(
+                  'Total Expenses',
+                  style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                    fontWeight: FontWeight.w500,
+                  ),
                           ),
                           const SizedBox(height: 4),
                           Text(

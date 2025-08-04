@@ -94,9 +94,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.expense != null ? 'Edit Expense' : 'Add Expense'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(
+          widget.expense != null ? 'Edit Expense' : 'Add Expense',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
         centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.grey[800]),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
