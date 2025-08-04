@@ -15,6 +15,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Expense> expenses = [];
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   bool _isLoading = true;
+  // Track which date sections are expanded
+  Set<DateTime> _expandedDates = {};
 
   @override
   void initState() {
@@ -33,6 +35,8 @@ class _HomeScreenState extends State<HomeScreen> {
         expenses = loadedExpenses;
         _isLoading = false;
       });
+      // Expand today's section by default
+      _expandTodaySection();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -44,6 +48,26 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+  }
+
+  void _expandTodaySection() {
+    if (expenses.isNotEmpty) {
+      final today = DateTime.now();
+      final todayKey = DateTime(today.year, today.month, today.day);
+      setState(() {
+        _expandedDates.add(todayKey);
+      });
+    }
+  }
+
+  void _toggleDateSection(DateTime date) {
+    setState(() {
+      if (_expandedDates.contains(date)) {
+        _expandedDates.remove(date);
+      } else {
+        _expandedDates.add(date);
+      }
+    });
   }
 
   Future<void> _addExpense(Expense expense) async {
@@ -116,6 +140,292 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result != null && result is Expense) {
       await _updateExpense(result);
     }
+  }
+
+  // Group expenses by date
+  Map<DateTime, List<Expense>> _groupExpensesByDate() {
+    Map<DateTime, List<Expense>> groupedExpenses = {};
+    
+    for (Expense expense in expenses) {
+      // Create a date key without time (just year, month, day)
+      DateTime dateKey = DateTime(expense.date.year, expense.date.month, expense.date.day);
+      
+      if (groupedExpenses.containsKey(dateKey)) {
+        groupedExpenses[dateKey]!.add(expense);
+      } else {
+        groupedExpenses[dateKey] = [expense];
+      }
+    }
+    
+    // Sort the map by date (most recent first)
+    Map<DateTime, List<Expense>> sortedExpenses = Map.fromEntries(
+      groupedExpenses.entries.toList()
+        ..sort((a, b) => b.key.compareTo(a.key))
+    );
+    
+    return sortedExpenses;
+  }
+
+  // Calculate total amount for a specific date
+  double _calculateDailyTotal(List<Expense> dailyExpenses) {
+    return dailyExpenses.fold(0, (sum, expense) => sum + expense.amount);
+  }
+
+  // Build list items for grouped expenses
+  List<Widget> _buildGroupedExpenseList() {
+    Map<DateTime, List<Expense>> groupedExpenses = _groupExpensesByDate();
+    List<Widget> widgets = [];
+    
+    groupedExpenses.forEach((date, dailyExpenses) {
+      final isExpanded = _expandedDates.contains(date);
+      
+      // Add collapsible date header with daily total
+      widgets.add(
+        Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            children: [
+              // Date header (always visible)
+              InkWell(
+                onTap: () => _toggleDateSection(date),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isExpanded 
+                        ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                        : Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      // Expand/collapse icon
+                      Icon(
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      
+                      // Date and total
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  _formatDateHeader(date),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '${dailyExpenses.length}',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              '₹${_calculateDailyTotal(dailyExpenses).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Collapsible expense list
+              if (isExpanded) ...[
+                const Divider(height: 1),
+                ...dailyExpenses.map((expense) => _buildExpenseCard(expense)).toList(),
+              ],
+            ],
+          ),
+        ),
+      );
+    });
+    
+    return widgets;
+  }
+
+  // Build individual expense card
+  Widget _buildExpenseCard(Expense expense) {
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: _getTypeColor(expense.type).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              _getTypeIcon(expense.type),
+              color: _getTypeColor(expense.type),
+              size: 24,
+            ),
+          ),
+          title: Text(
+            expense.title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getTypeColor(expense.type).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      expense.type,
+                      style: TextStyle(
+                        color: _getTypeColor(expense.type),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _formatTime(expense.date),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              if (expense.description.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  expense.description,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '₹${expense.amount.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.red,
+                ),
+              ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _editExpense(expense);
+                  } else if (value == 'delete') {
+                    _deleteExpense(expense.id);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, color: Colors.blue, size: 20),
+                        SizedBox(width: 8),
+                        Text('Edit'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, color: Colors.red, size: 20),
+                        SizedBox(width: 8),
+                        Text('Delete'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          onLongPress: () {
+            showModalBottomSheet(
+              context: context,
+              builder: (BuildContext context) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.edit, color: Colors.blue),
+                        title: const Text('Edit Expense'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _editExpense(expense);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.delete, color: Colors.red),
+                        title: const Text('Delete Expense'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _deleteExpense(expense.id);
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        const Divider(height: 1, indent: 80),
+      ],
+    );
   }
 
   @override
@@ -222,165 +532,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       )
-                    : ListView.builder(
+                    : ListView(
                         padding: const EdgeInsets.all(16),
-                        itemCount: expenses.length,
-                        itemBuilder: (context, index) {
-                          final expense = expenses[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: InkWell(
-                              onLongPress: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return Container(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          ListTile(
-                                            leading: const Icon(Icons.edit, color: Colors.blue),
-                                            title: const Text('Edit Expense'),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              _editExpense(expense);
-                                            },
-                                          ),
-                                          ListTile(
-                                            leading: const Icon(Icons.delete, color: Colors.red),
-                                            title: const Text('Delete Expense'),
-                                            onTap: () {
-                                              Navigator.pop(context);
-                                              _deleteExpense(expense.id);
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(
-                                  children: [
-                                    // Icon and category
-                                    Container(
-                                      width: 50,
-                                      height: 50,
-                                      decoration: BoxDecoration(
-                                        color: _getTypeColor(expense.type).withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Icon(
-                                        _getTypeIcon(expense.type),
-                                        color: _getTypeColor(expense.type),
-                                        size: 24,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    
-                                    // Expense details
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            expense.title,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 2,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: _getTypeColor(expense.type).withOpacity(0.2),
-                                                  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  expense.type,
-                                                  style: TextStyle(
-                                                    color: _getTypeColor(expense.type),
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                _formatDate(expense.date),
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          if (expense.description.isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              expense.description,
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // Amount and actions
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          '₹${expense.amount.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                                              onPressed: () => _editExpense(expense),
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            IconButton(
-                                              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                                              onPressed: () => _deleteExpense(expense.id),
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                        children: _buildGroupedExpenseList(),
                       ),
           ),
         ],
@@ -448,6 +602,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  String _formatDateHeader(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final dateToCheck = DateTime(date.year, date.month, date.day);
+    
+    if (dateToCheck == today) {
+      return 'Today';
+    } else if (dateToCheck == yesterday) {
+      return 'Yesterday';
+    } else {
+      // Format: "Monday, 15 Jan 2024"
+      final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+    }
+  }
+
+  String _formatTime(DateTime date) {
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   double _calculateTotal() {
