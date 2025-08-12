@@ -80,16 +80,24 @@ class _HomeScreenState extends State<HomeScreen> {
       final todayTotal = todayExpenses.fold(0.0, (sum, e) => sum + e.amount);
       final newTotal = todayTotal + expense.amount;
       
-      if (newTotal > dailyLimit) {
-        // Show warning dialog
-        final shouldContinue = await _showDailyLimitWarning(newTotal, dailyLimit);
-        if (!shouldContinue) {
-          return; // User cancelled
-        }
-      }
-      
+      // Add the expense directly
       await _databaseHelper.insertExpense(expense);
       await _loadExpenses(); // Reload the list
+      
+      // Show snackbar if daily limit is exceeded
+      if (newTotal > dailyLimit) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Daily limit exceeded! New total: ₹${newTotal.toStringAsFixed(0)} (Limit: ₹${dailyLimit.toStringAsFixed(0)})',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -99,32 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<bool> _showDailyLimitWarning(double newTotal, double limit) async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Daily Limit Warning'),
-          content: Text(
-            'Adding this expense will exceed your daily limit of ₹${limit.toStringAsFixed(0)}.\n\n'
-            'New total: ₹${newTotal.toStringAsFixed(0)}\n'
-            'Limit: ₹${limit.toStringAsFixed(0)}\n\n'
-            'Do you want to continue?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Continue', style: TextStyle(color: Colors.orange)),
-            ),
-          ],
-        );
-      },
-    ) ?? false;
-  }
+
 
   Future<void> _updateExpense(Expense expense) async {
     try {
